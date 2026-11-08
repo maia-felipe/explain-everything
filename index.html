@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explain Anything</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ["Geist", "system-ui", "sans-serif"],
+          serif: ['"Instrument Serif"', "Georgia", "serif"],
+          mono: ['"Geist Mono"', "ui-monospace", "monospace"]
+        }
+      }
+    }
+  };
+</script>
+<style>
+  /* Scrim over the photo while it loads; follows the light/dark theme. */
+  :root { --scrim: rgba(248, 250, 252, 0.85); --scrim-strong: rgba(248, 250, 252, 0.96); }
+  @media (prefers-color-scheme: dark) {
+    :root { --scrim: rgba(2, 6, 23, 0.82); --scrim-strong: rgba(2, 6, 23, 0.95); }
+  }
+  [hidden] { display: none !important; }
+  /* Empty-state hint shows until the iframe has something to show. */
+  #empty { display: none; }
+  #frame:not([srcdoc]) ~ #empty, #frame[srcdoc=""] ~ #empty { display: flex; }
+</style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+  <div class="mx-auto grid max-w-6xl grid-cols-1 gap-6 p-4 sm:p-6 md:grid-cols-2 lg:grid-cols-4 lg:gap-8 lg:p-8">
+
+    <header class="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-blue-50 p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-slate-800 dark:from-slate-900 dark:to-slate-900/40 md:col-span-2 lg:col-span-3">
+      <h1 class="font-serif text-5xl leading-none tracking-tight sm:text-6xl">Explain <em>Anything</em></h1>
+      <p class="mt-3 max-w-2xl text-slate-600 dark:text-slate-400">Snap a sketch, a formula, or a textbook page, or just type a concept, and watch it come alive.</p>
+    </header>
+
+    <section class="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 md:col-span-2 lg:col-span-1">
+      <label for="model" class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Model</label>
+      <select id="model" class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800">
+        <option value="gemini-flash-latest">gemini-flash-latest (recommended)</option>
+        <option value="gemini-pro-latest">gemini-pro-latest (paid tier only)</option>
+        <option value="gemini-flash-lite-latest">gemini-flash-lite-latest (fastest)</option>
+      </select>
+      <p class="text-xs text-slate-500 dark:text-slate-400">Saved in this browser.</p>
+    </section>
+
+    <form id="form" class="flex flex-col justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 md:col-span-2">
+      <label for="concept" class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Concept</label>
+      <div class="flex flex-col gap-3 sm:flex-row">
+        <input id="concept" placeholder="Type a concept, or use a photo" autocomplete="off" class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800">
+        <button class="rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-blue-500">Explain</button>
+      </div>
+    </form>
+
+    <button type="button" id="cameraBtn" class="flex flex-col items-start gap-3 rounded-2xl border border-slate-200 bg-white p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:border-blue-400 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500/60">
+      <span class="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-blue-600 dark:border-slate-700 dark:text-blue-400"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></span>
+      <span class="font-semibold">Camera</span>
+      <span class="text-sm text-slate-500 dark:text-slate-400">Snap a sketch, formula, or page.</span>
+    </button>
+
+    <button type="button" id="uploadBtn" class="flex flex-col items-start gap-3 rounded-2xl border border-slate-200 bg-white p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:border-blue-400 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500/60">
+      <span class="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-blue-600 dark:border-slate-700 dark:text-blue-400"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg></span>
+      <span class="font-semibold">Upload photo</span>
+      <span class="text-sm text-slate-500 dark:text-slate-400">Pick an image from your device.</span>
+    </button>
+    <input id="file" type="file" accept="image/*" hidden>
+
+    <!-- No hover lift here: the card holds the interactive visualization. -->
+    <section class="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 transition-all duration-300 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 md:col-span-2 lg:col-span-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h2 class="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Visualization</h2>
+        <div id="actions" class="flex flex-wrap gap-2" hidden>
+          <button id="regen" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium transition-colors hover:border-blue-500 dark:border-slate-700 dark:bg-slate-800">Regenerate</button>
+          <button id="simpler" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium transition-colors hover:border-blue-500 dark:border-slate-700 dark:bg-slate-800">Make it simpler</button>
+        </div>
+      </div>
+
+      <main id="result" class="relative h-[85vh] min-h-[420px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
+        <iframe id="frame" sandbox="allow-scripts" title="Visualization" class="absolute inset-0 h-full w-full border-0"></iframe>
+        <div id="empty" class="absolute inset-0 flex-col items-center justify-center gap-2 bg-[radial-gradient(theme(colors.slate.300)_1px,transparent_1px)] bg-[length:20px_20px] p-4 text-center dark:bg-[radial-gradient(theme(colors.slate.800)_1px,transparent_1px)]">
+          <p class="font-serif text-2xl italic text-slate-700 dark:text-slate-300">Nothing here yet.</p>
+          <p class="text-sm text-slate-500 dark:text-slate-400">Type a concept or add a photo to build an interactive visualization.</p>
+        </div>
+        <div id="camera" class="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-white p-4 text-center dark:bg-slate-900" hidden>
+          <video id="video" autoplay playsinline muted class="max-h-[calc(100%-64px)] min-h-0 max-w-full rounded-lg bg-black"></video>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" id="snap" class="rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white transition-colors hover:bg-blue-500">Snap</button>
+            <button type="button" id="cancelCamera" class="rounded-lg border border-slate-200 bg-white px-4 py-2 font-medium transition-colors hover:border-blue-500 dark:border-slate-700 dark:bg-slate-800">Cancel</button>
+          </div>
+        </div>
+        <div id="loading" class="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-slate-50 bg-cover bg-center p-4 text-center dark:bg-slate-950" hidden>
+          <div class="flex items-center gap-3">
+            <div class="h-7 w-7 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500 dark:border-slate-700 dark:border-t-blue-500"></div>
+            <span id="status"></span>
+            <span id="elapsed" class="font-mono text-xs text-slate-500 dark:text-slate-400"></span>
+          </div>
+          <pre id="code" class="m-0 max-h-[80%] w-full overflow-auto whitespace-pre-wrap text-left font-mono text-xs leading-relaxed text-slate-500 empty:hidden dark:text-slate-400"></pre>
+        </div>
+        <div id="error" class="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-slate-50 p-4 text-center dark:bg-slate-950" hidden>
+          <div id="errorMsg" class="max-w-xl whitespace-pre-wrap rounded-xl border border-red-300 bg-red-50 px-5 py-4 text-red-800 [overflow-wrap:anywhere] dark:border-red-500/60 dark:bg-red-950/60 dark:text-red-200"></div>
+          <button id="retry" class="rounded-lg border border-slate-200 bg-white px-4 py-2 font-medium transition-colors hover:border-blue-500 dark:border-slate-700 dark:bg-slate-800">Try again</button>
+        </div>
+      </main>
+    </section>
+
+  </div>
+
+<script src="config.js"></script>
+<script>
+const SYSTEM_PROMPT = `You are a world-class science communicator and creative coder. Given a concept, you build ONE complete HTML document: an "explorable explanation" in the spirit of Distill.pub, Bartosz Ciechanowski and Nicky Case. It must feel like a beautiful, hand-crafted interactive article that someone would share, not a small widget.
+
+PAGE STRUCTURE (all sections required, in this order, each a <section class="section">):
+1. Hero: an .eyebrow label, a big <h1>, a one-line hook that makes people curious, and a large centerpiece visualization that is ALREADY ANIMATING on page load with no interaction needed. This is the first thing the audience sees: make it gorgeous (motion, glow, particles, depth).
+2. The big idea: 3 to 5 short paragraphs building real intuition, plus one concrete everyday analogy in a .callout.
+3. The lab: the main interactive simulation. At least 3 controls (sliders, toggles, draggable points), live numeric .readout values, play/pause and reset buttons, and 3 to 4 preset .chip buttons ("Try: resonance", "Try: zero gravity") that jump to the most interesting states. Labeled axes and units where relevant.
+4. Step by step: 3 to 5 numbered .card steps that walk through how it works. Each step has its own small animated or interactive diagram, or a button that drives the lab into that state.
+5. The math: the key formula(s) in LaTeX, with each variable explained, and a live line that plugs in the current slider values. Skip only if the concept has no math at all, and replace it with a "by the numbers" section of striking facts.
+6. What surprises people: 2 to 3 common misconceptions, each with the correct picture.
+7. In the real world: 3 concrete applications or examples as .card items.
+8. Quick check: 3 multiple-choice questions in a .quiz block, with instant right/wrong feedback and a one-sentence explanation after each answer.
+
+PICK THE RIGHT MEDIUM for the centerpiece and lab:
+- 3D things (molecules, orbits, geometry, fields, anatomy): Three.js with OrbitControls.
+- Mechanics, collisions, springs, stacking: Matter.js, or your own integrator on canvas.
+- Networks, trees, graphs, data, timelines: D3 with SVG.
+- Diffusion, gases, crowds, populations, waves: canvas particle systems.
+- Processes, cycles, diagrams: animated SVG.
+- Generative, biological, artistic: p5.js.
+
+AVAILABLE LIBRARIES (load with a plain <script src> tag using EXACTLY these URLs; use at most 2; plain canvas/SVG is fine when it fits better):
+- Three.js (global THREE): https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
+- OrbitControls (THREE.OrbitControls, load after Three.js): https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js
+- D3 (global d3): https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js
+- p5.js (global mode or instance mode): https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js
+- Matter.js (global Matter): https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js
+- GSAP (global gsap): https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js
+- Chart.js (global Chart): https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js
+No other external resources, no ES module imports, no fetch or XHR.
+
+DESIGN KIT (already injected into the page for you; do NOT redefine it, build on it):
+- Dark theme. CSS variables: --bg, --panel, --panel-2, --line, --ink, --muted, --accent (cyan), --accent-2 (violet), --accent-3 (amber), --good (green), --bad (red), --radius, --serif, --sans, --mono. Use these variables for every color so the page stays coherent.
+- Classes: .section (centered column with generous spacing), .hero (taller first section), .eyebrow (small uppercase label), .lede (large intro text), .card, .grid (responsive card grid), .callout, .btn and .btn.primary, .chip, .controls (control panel layout), .control (label + input + readout row), .readout (monospace live value), .stage (framed area for a canvas/svg; give it a height), .quiz, .option, .option.correct, .option.wrong, .feedback.
+- Headings use the serif display font automatically. Range inputs, buttons and selects are already styled.
+- KaTeX is loaded and auto-renders on page load: write inline math as \\( ... \\) and display math as $$ ... $$ in the HTML. For math you update from JavaScript, call katex.render(texString, element).
+
+ENGINEERING RULES:
+- Put your own JavaScript in ONE <script> at the end of <body>. Declare ALL constants, state variables and functions first; start animation loops and event wiring only at the very bottom, after everything they touch is defined. A "Cannot access X before initialization" error leaves a blank canvas, which is the worst possible outcome.
+- Give each visual (hero, lab, each step diagram) its own init function, and call each one inside try { ... } catch (e) { console.error(e) }, so a bug in one can never blank the rest of the page.
+- Do not load KaTeX or fonts yourself; they are already on the page.
+- Animate with requestAnimationFrame. Canvases must scale by devicePixelRatio and redraw on resize. Size visuals to their container so it works from phone width to a wide projector.
+- Every control, preset and quiz option must actually work. No placeholders, no TODOs, no lorem ipsum, no "simplified for brevity".
+- Never use localStorage, sessionStorage, cookies, alert, prompt or confirm: the page runs in a sandboxed iframe where they throw.
+- Use vivid, high-contrast colors on the dark background; label everything the viewer needs to read.
+
+Be ambitious: expect 600 to 1200 lines. Do not abbreviate the code. Return ONLY the raw HTML, starting with <!DOCTYPE html> and ending with </html>. No markdown fences, no commentary.`;
+const PHOTO_PROMPT = "Bring this photo to life. Work out what it shows (a hand-drawn sketch, diagram, formula, chart, or textbook page) and build the full explorable page about exactly that. The hero centerpiece and the lab must recreate the photo's objects, layout and labels recognizably, then make them move and respond to the controls. Open the big idea section by saying what you see in the photo.";
+const SIMPLER = "Make it simpler: write for a curious 12-year-old. Keep every section, but use plain words, short sentences, bigger visuals, at most 2 controls in the lab, and no heavy math (show the formula in words instead).";
+const DEFAULT_MODEL = "gemini-flash-latest";
+const CACHE_VERSION = "v2";
+
+// Shared design kit injected into every generated page, so even plain output looks polished.
+const KIT = `
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"><\/script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"><\/script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  try {
+    renderMathInElement(document.body, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "\\\\[", right: "\\\\]", display: true },
+        { left: "\\\\(", right: "\\\\)", display: false }
+      ],
+      throwOnError: false
+    });
+  } catch {}
+});
+<\/script>
+<style>
+  :root {
+    --bg: #070a14; --panel: #0e1324; --panel-2: #151b31; --line: rgba(148, 163, 255, 0.14);
+    --ink: #e8ecf8; --muted: #94a0bf;
+    --accent: #22d3ee; --accent-2: #a78bfa; --accent-3: #fbbf24; --good: #34d399; --bad: #f87171;
+    --radius: 18px;
+    --serif: "Instrument Serif", Georgia, serif;
+    --sans: "Geist", system-ui, sans-serif;
+    --mono: "Geist Mono", ui-monospace, monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; color: var(--ink); font: 17px/1.7 var(--sans); -webkit-font-smoothing: antialiased;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(34, 211, 238, 0.12), transparent 60%),
+      radial-gradient(900px 500px at 100% 10%, rgba(167, 139, 250, 0.12), transparent 60%),
+      var(--bg);
+    background-attachment: fixed;
+  }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 400; line-height: 1.05; letter-spacing: -0.01em; margin: 0 0 0.5em; }
+  h1 { font-size: clamp(44px, 8vw, 88px); }
+  h2 { font-size: clamp(32px, 5vw, 52px); }
+  h3 { font-size: clamp(22px, 3vw, 28px); }
+  h1 em, h2 em { color: var(--accent); }
+  p { margin: 0 0 1em; }
+  a { color: var(--accent); }
+  strong { color: #fff; }
+  .section { max-width: 1040px; margin: 0 auto; padding: clamp(48px, 8vw, 96px) 20px; }
+  .section + .section { border-top: 1px solid var(--line); }
+  .hero { min-height: 92vh; display: flex; flex-direction: column; justify-content: center; }
+  .eyebrow { font: 500 12px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.16em; color: var(--accent); margin-bottom: 18px; }
+  .lede { font-size: clamp(19px, 2.4vw, 24px); color: var(--muted); max-width: 46ch; }
+  .card { background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
+  .grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .callout { border-left: 3px solid var(--accent-2); background: rgba(167, 139, 250, 0.08); border-radius: 0 var(--radius) var(--radius) 0; padding: 18px 22px; margin: 24px 0; }
+  .stage { position: relative; width: 100%; min-height: 320px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(5, 8, 18, 0.7); overflow: hidden; }
+  .stage canvas, .stage svg { display: block; width: 100%; height: 100%; }
+  .controls { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin: 20px 0; padding: 20px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+  .control { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; font-size: 14px; color: var(--muted); }
+  .control input[type=range] { grid-column: 1 / -1; }
+  .readout { font: 500 14px var(--mono); color: var(--accent); font-variant-numeric: tabular-nums; }
+  .btn, .chip, button { font: 500 14px var(--sans); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 9px 18px; cursor: pointer; transition: border-color .2s, background .2s, transform .2s; }
+  .btn:hover, .chip:hover, button:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .btn.primary { background: var(--accent); color: #04121a; border-color: transparent; font-weight: 600; }
+  .chip { font-size: 13px; padding: 6px 14px; }
+  .chip.active { border-color: var(--accent); background: rgba(34, 211, 238, 0.12); }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 999px; background: var(--line); outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.2); cursor: pointer; }
+  input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border: 0; border-radius: 50%; background: var(--accent); cursor: pointer; }
+  select { font: 14px var(--sans); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+  .quiz { display: grid; gap: 22px; }
+  .quiz .option { display: block; width: 100%; text-align: left; border-radius: 12px; margin-top: 8px; }
+  .option.correct { border-color: var(--good); background: rgba(52, 211, 153, 0.12); }
+  .option.wrong { border-color: var(--bad); background: rgba(248, 113, 113, 0.12); }
+  .feedback { margin-top: 10px; font-size: 15px; color: var(--muted); }
+  .katex-display { overflow-x: auto; overflow-y: hidden; padding: 8px 0; }
+  ::selection { background: rgba(34, 211, 238, 0.3); }
+</style>
+`;
+const MAX_PHOTO_SIDE = 1280;
+
+const $ = id => document.getElementById(id);
+const store = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+const load = k => { try { return localStorage.getItem(k); } catch { return null; } };
+
+// A key in config.js (optional, gitignored) wins over one saved in the browser.
+$("model").value = load("gemini-model") || DEFAULT_MODEL;
+if (!$("model").value) $("model").value = DEFAULT_MODEL;
+$("model").addEventListener("change", e => store("gemini-model", e.target.value));
+
+let last = { concept: "", photo: null, simpler: false };
+let requestId = 0;
+let controller;
+let stream;
+
+// Finished pages are cached per concept (or per photo) so repeat runs load instantly.
+async function cacheKey({ concept, photo, simpler }) {
+  let id = concept.toLowerCase();
+  if (photo) {
+    const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(photo)));
+    id = "photo:" + [...hash.slice(0, 8)].map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+  return `viz:${CACHE_VERSION}:${simpler ? "simple:" : ""}${id}`;
+}
+
+// Drop markdown fences and anything before the document starts or after it ends.
+function clean(text) {
+  let s = text.replace(/```(?:html)?/gi, "");
+  const i = s.search(/<!DOCTYPE html|<html/i);
+  if (i >= 0) s = s.slice(i);
+  const end = s.toLowerCase().lastIndexOf("</html>");
+  if (end >= 0) s = s.slice(0, end + "</html>".length);
+  return s.trim();
+}
+
+// Put the design kit at the top of <head>, before the page's own styles and scripts.
+function enhance(html) {
+  if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, m => m + KIT);
+  if (/<html[^>]*>/i.test(html)) return html.replace(/<html[^>]*>/i, m => `${m}<head>${KIT}</head>`);
+  return KIT + html;
+}
+
+function showError(msg) {
+  $("errorMsg").textContent = msg;
+  $("error").hidden = false;
+}
+
+function render(html) {
+  $("frame").srcdoc = enhance(html);
+  $("actions").hidden = false;
+}
+
+// Scale an image or video frame down and encode it as a JPEG data URL.
+function toJpeg(source, width, height) {
+  const scale = Math.min(1, MAX_PHOTO_SIDE / Math.max(width, height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(width * scale);
+  canvas.height = Math.round(height * scale);
+  canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.85);
+}
+
+async function openCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } });
+    $("video").srcObject = stream;
+    $("error").hidden = true;
+    $("camera").hidden = false;
+  } catch (err) {
+    showError(`Couldn't open the camera: ${err.message}`);
+  }
+}
+
+function closeCamera() {
+  stream?.getTracks().forEach(track => track.stop());
+  stream = null;
+  $("camera").hidden = true;
+}
+
+function runPhoto(photo) {
+  $("concept").value = "";
+  run({ photo });
+}
+
+// Read Gemini's server-sent events, passing the text so far to onText
+// and the latest thought-summary heading (while the model thinks) to onThought.
+async function readStream(res, onText, onThought) {
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "", text = "", thoughts = "", finishReason;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith("data:")) continue;
+      const chunk = JSON.parse(line.slice(5));
+      if (chunk.error) throw new Error(chunk.error.message);
+      const candidate = chunk.candidates?.[0];
+      const parts = candidate?.content?.parts || [];
+      text += parts.filter(p => !p.thought).map(p => p.text || "").join("");
+      thoughts += parts.filter(p => p.thought).map(p => p.text || "").join("");
+      finishReason = candidate?.finishReason || finishReason;
+    }
+    const heading = [...thoughts.matchAll(/\*\*(.+?)\*\*/g)].pop()?.[1];
+    if (heading && !text) onThought(heading);
+    onText(text);
+  }
+  return { text, finishReason };
+}
+
+async function run({ concept = "", photo = null, simpler = false, fresh = false }) {
+  concept = concept.trim();
+  if (!concept && !photo) return;
+  last = { concept, photo, simpler };
+  const id = ++requestId;
+  controller?.abort();
+  closeCamera();
+  $("error").hidden = true;
+  $("actions").hidden = true;
+  $("loading").hidden = true;
+  $("frame").srcdoc = "";
+
+  const cacheId = await cacheKey(last);
+  if (id !== requestId) return;
+  const cached = !fresh && load(cacheId);
+  if (cached) return render(cached);
+
+  const key = (window.GEMINI_API_KEY || "").trim();
+  const model = $("model").value.trim() || DEFAULT_MODEL;
+  if (!key) return showError("Missing Gemini API key.\nAdd it to config.js, then reload and try again.");
+
+  const parts = [{ text: (photo ? PHOTO_PROMPT : `Concept: ${concept}`) + (simpler ? `\n\n${SIMPLER}` : "") }];
+  if (photo) parts.unshift({ inlineData: { mimeType: "image/jpeg", data: photo.split(",")[1] } });
+
+  controller = new AbortController();
+  $("code").textContent = "";
+  $("status").textContent = photo ? "Bringing your photo to life..." : "Thinking about how to explain it...";
+  $("loading").style.backgroundImage = photo ? `linear-gradient(var(--scrim), var(--scrim-strong)), url("${photo}")` : "";
+  $("loading").hidden = false;
+  const started = Date.now();
+  $("elapsed").textContent = "0s";
+  const timer = setInterval(() => { $("elapsed").textContent = `${Math.round((Date.now() - started) / 1000)}s`; }, 1000);
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      signal: controller.signal,
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: [{ role: "user", parts }],
+        generationConfig: { maxOutputTokens: 65536, thinkingConfig: { thinkingLevel: "high", includeThoughts: true } }
+      })
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.log("Gemini error response:", data);
+      throw new Error(data.error?.message || `Request failed with status ${res.status}.`);
+    }
+
+    const { text, finishReason } = await readStream(res, soFar => {
+      if (!soFar) return;
+      $("status").textContent = `Writing the page... ${soFar.split("\n").length} lines`;
+      $("code").textContent = soFar;
+      $("code").scrollTop = $("code").scrollHeight;
+    }, heading => {
+      $("status").textContent = `${heading}...`;
+    });
+    console.log("Gemini raw response:", text);
+    if (!text.trim()) throw new Error(`The model returned an empty response${finishReason ? ` (finishReason: ${finishReason})` : ""}.`);
+    if (finishReason === "MAX_TOKENS") throw new Error("The page was cut off before it finished. Try again.");
+
+    const html = clean(text);
+    console.log("Cleaned HTML:", html);
+    store(cacheId, html);
+    render(html);
+  } catch (err) {
+    if (id === requestId) showError(err.message);
+  } finally {
+    clearInterval(timer);
+    if (id === requestId) $("loading").hidden = true;
+  }
+}
+
+$("form").addEventListener("submit", e => { e.preventDefault(); run({ concept: $("concept").value }); });
+$("regen").addEventListener("click", () => run({ ...last, fresh: true }));
+$("simpler").addEventListener("click", () => run({ ...last, simpler: true }));
+$("retry").addEventListener("click", () => { $("error").hidden = true; run(last); });
+
+$("cameraBtn").addEventListener("click", openCamera);
+$("cancelCamera").addEventListener("click", closeCamera);
+$("snap").addEventListener("click", () => {
+  const video = $("video");
+  runPhoto(toJpeg(video, video.videoWidth, video.videoHeight));
+});
+$("uploadBtn").addEventListener("click", () => $("file").click());
+$("file").addEventListener("change", () => {
+  const file = $("file").files[0];
+  $("file").value = "";
+  if (!file) return;
+  const img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(img.src);
+    runPhoto(toJpeg(img, img.naturalWidth, img.naturalHeight));
+  };
+  img.onerror = () => showError("Couldn't read that image file.");
+  img.src = URL.createObjectURL(file);
+});
+</script>
+</body>
+</html>
